@@ -56,14 +56,14 @@ Use this menu to switch between sections of the dashboard:
 - **Home**: Overview of global temperature trends
 - **Explore Trends**: Yearly patterns, variability, and status comparisons
 - **Warming Gases**: Contributions by greenhouse gases and sources
-- **Placeholder**: This is a placeholder page.
+- **Global Warming Contribution**: This is a placeholder page.
 - **Chat Assistant**: Ask questions like "Which country warmed fastest in 1998?"
 
 🌓 **Note**: This dashboard is best viewed in **dark mode** for optimal readability and contrast.
 """)
 page = st.sidebar.radio(
     "Go to:",
-    ["Home", "Explore Trends", "Warming Gases", "Placeholder", "Chat Assistant"],  
+    ["Home", "Explore Trends", "Warming Gases", "Global Warming Contribution", "Chat Assistant"],  
     index=0
 )
 
@@ -117,26 +117,41 @@ def prepare_gas_data(df2, dev_year_range, chart_country):
         "default": "CO2_AgLU"
     }
 
-    # Shorten column names using the mapping
-    gas_cols = [c for c in df2_filtered.columns if c.startswith("Change in")]
-    shortened_columns = {}
+    # Not clear to my why this is needed, but keeping it for now
+    # for col in gas_cols:
+    #     for gas, sources in gas_mapping.items():
+    #         if gas in col:
+    #             if isinstance(sources, dict):
+    #                 for source, new_name in sources.items():
+    #                     if source in col:
+    #                         shortened_columns[col] = new_name
+    #                         break
+    #             else:
+    #                 shortened_columns[col] = sources
+    #             break
+    #     else:
+    #         shortened_columns[col] = "CO2_AgLU"  # Default case
 
-    for col in gas_cols:
-        for gas, sources in gas_mapping.items():
-            if gas in col:
-                if isinstance(sources, dict):
-                    for source, new_name in sources.items():
-                        if source in col:
-                            shortened_columns[col] = new_name
-                            break
-                else:
-                    shortened_columns[col] = sources
-                break
-        else:
-            shortened_columns[col] = "CO2_AgLU"  # Default case
+    # Shorten column names using the mapping
+    gas_cols = [c for c in df2.columns if c.startswith("Change in")]
+    
+    # Creating mapping labels
+    shortened_columns = {
+        col: (
+            "N₂O (Fossil Fuels & Industry)" if "nitrous oxide" in col and "fossil fuels" in col else
+            "N₂O (Agriculture & Land Use)" if "nitrous oxide" in col else
+            "CH₄ (Fossil Fuels & Industry)" if "methane" in col and "fossil fuels" in col else
+            "CH₄ (Agriculture & Land Use)" if "methane" in col else
+            "CO₂ (Fossil Fuels & Industry)" if "fossil fuels" in col else 
+            "CO₂ (Agriculture & Land Use)"
+        )
+        for col in gas_cols
+    }
 
     # Get the gas data and rename columns
-    gas_df = gas_data(chart_country).rename(columns=shortened_columns)
+    gas_df = gas_data(chart_country)
+
+    gas_df = gas_df.rename(columns=shortened_columns)
 
     # Melt the DataFrame for visualization
     gas_long = gas_df.melt(
@@ -146,33 +161,96 @@ def prepare_gas_data(df2, dev_year_range, chart_country):
         value_name="Temp Change"
     )
 
-    # Add a legend mapping for better readability
-    label_map = {
-        "CO2_FF&I": "CO₂ (Fossil Fuels & Industry)",
-        "CO2_AgLU": "CO₂ (Agriculture & Land Use)",
-        "CH4_FF&I": "CH₄ (Fossil Fuels & Industry)",
-        "CH4_AgLU": "CH₄ (Agriculture & Land Use)",
-        "N2O_FF&I": "N₂O (Fossil Fuels & Industry)",
-        "N2O_AgLU": "N₂O (Agriculture & Land Use)"
-    }
-    gas_long["Legend"] = gas_long["series"].map(label_map)
-
     return gas_long 
-    
-# ─── Sidebar Filters ───────────────
-if page not in ["Home", "Chat Assistant"]:
-    st.sidebar.header("🔍 Filters")
-    countries = ["All"] + sorted(df_long["Country"].unique())
-    years = sorted(df_long["Year"].unique())  # Keep years available if needed
 
-    selected_country = st.sidebar.selectbox("Country", countries)
-    selected_year = st.sidebar.selectbox("Year", years)  # Optional: keep if you want to filter by year
+# Monthly average temperature data
+@ st.cache_data
+def load_monthly_data():
+    df_monthly = pd.read_csv("df_monthly_long.csv")
+    df_monthly['Date'] = pd.to_datetime(df_monthly[['Year', 'Month']].assign(DAY=1)) # Adding a date column for better plotting
+    df_monthly.rename(columns={'Mean_Temp':'Monthly Average Temperature Change (°C)',}, inplace=True)
 
-    # Filter the DataFrame based on selected country and year
-    filtered = df_long.copy()
+    # Creating new yearly averages column
+    yearly_averages = df_monthly.groupby(['Year','Entity'])["Monthly Average Temperature Change (°C)"].agg('mean').reset_index().rename(columns={"Monthly Average Temperature Change (°C)": "Yearly Average Temperature Change (°C)"})
     
-    if selected_country != "All":
-        filtered = filtered[filtered["Country"] == selected_country]
+    # Merging
+    df_monthly = pd.merge(df_monthly, yearly_averages, on=['Year','Entity'], how='left')
+
+    return df_monthly
+
+@st.cache_data
+def load_contribution_df():
+    df_contribution = pd.read_csv('contributions-global-temp-change.csv')
+    df_overview = df_contribution[df_contribution['Entity'].isin(['OECD (Jones et al.)', 'Least developed countries (Jones et al.)'])]
+    df_overview = df_overview[(df_overview['Year']>= 1961) & (df_overview['Year']<= 2024)]
+    # Creating line chart of individual OECD Nations
+    oecd_list = [
+        "Australia", "Austria", "Belgium", "Canada", "Chile", "Colombia", "Costa Rica",
+        "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
+        "Hungary", "Iceland", "Ireland", "Israel", "Italy", "Japan", "Latvia", "Lithuania",
+        "Luxembourg", "Mexico", "Netherlands", "New Zealand", "Norway", "Poland", "Portugal",
+        "Slovakia", "Slovenia", "South Korea", "Spain", "Sweden", "Switzerland", "Turkey",
+        "United Kingdom", "United States"]
+
+
+
+    ldc_countries = [
+        # Africa (32)
+        "Angola", "Benin", "Burkina Faso", "Burundi", "Central African Republic", "Chad",
+        "Comoros", "Democratic Republic of the Congo", "Djibouti", "Eritrea", "Ethiopia",
+        "Gambia", "Guinea", "Guinea-Bissau", "Lesotho", "Liberia", "Madagascar", "Malawi",
+        "Mali", "Mauritania", "Mozambique", "Niger", "Rwanda", "Senegal", "Sierra Leone",
+        "Somalia", "South Sudan", "Sudan", "Togo", "Uganda", "United Republic of Tanzania", "Zambia",
+
+        # Asia (8)
+        "Afghanistan", "Bangladesh", "Cambodia", "Lao People’s Democratic Republic",
+        "Myanmar", "Nepal", "Timor-Leste", "Yemen",
+
+        # Pacific (3)
+        "Kiribati", "Solomon Islands", "Tuvalu",
+
+        # Caribbean (1)
+        "Haiti"]
+        ######
+    # Creating a LDC df
+    df_contribution_lcd = df_contribution[df_contribution['Entity'].isin(ldc_countries)]
+    df_contribution_lcd = df_contribution_lcd[(df_contribution_lcd['Year'] >= 1961) & (df_contribution_lcd['Year'] <= 2024)]
+        
+    # Groupby to get top 10
+    group = df_contribution_lcd.groupby('Entity')['Share of contribution to global warming'].mean().sort_values(ascending=False)
+
+    # Top 10 countries
+    top_10_countries_LDC = group.reset_index().iloc[:10]
+
+    # Creating a list of top 10
+    top_10_countries_LDC = list(top_10_countries_LDC['Entity'].unique())
+
+    # Filtering the df again
+    df_contribution_lcd = df_contribution_lcd[df_contribution_lcd['Entity'].isin(top_10_countries_LDC)]
+
+    ######
+        
+    # Creating a OECD df
+    df_contribution_oecd = df_contribution[df_contribution['Entity'].isin(oecd_list)]
+    df_contribution_oecd = df_contribution_oecd[(df_contribution_oecd['Year'] >= 1961) & (df_contribution_oecd['Year'] <= 2024)]
+        
+    # Groupby to get top 10
+    group = df_contribution_oecd.groupby('Entity')['Share of contribution to global warming'].mean().sort_values(ascending=False)
+
+    # Top 10 countries
+    top_10_countries = group.reset_index().iloc[:10]
+
+    # Creating a list of top 10
+    top_10_countries_list = list(top_10_countries['Entity'].unique())
+
+    # Filtering OECD df to get top 10
+    df_contribution_oecd = df_contribution_oecd[df_contribution_oecd['Entity'].isin(top_10_countries_list)]
+
+    # Return df
+    return df_overview, df_contribution_lcd, df_contribution_oecd
+
+
+
 
 # ─── Home Page ───────────────────────────── 
 if page == "Home":
@@ -190,8 +268,29 @@ if page == "Home":
 if page == "Explore Trends":
     tab1, tab2, tab3, tab4 = st.tabs(["📈 Year-over-Year", "🌡️ Scatter Plot", "🔻 Variability", "🌍 Country Status"])
 
+    # ─── Sidebar Filters ───────────────    
+    st.sidebar.header("🔍 Filters")
+    countries = ["All"] + sorted(df_long["Country"].unique())
+    years = sorted(df_long["Year"].unique())  # Keep years available if needed
+
+    selected_country = st.sidebar.selectbox("Country", countries)
+    
+    year_min, year_max = int(df_long["Year"].min()), int(df_long["Year"].max())
+    dev_year_range = st.sidebar.slider("Year Range",
+                               min_value=year_min,
+                               max_value=year_max,
+                               value=(year_min, year_max),
+                               step=1,
+                               key="dev_year_range")  # Optional: keep if you want to filter by year
+
+    # Filter the DataFrame based on selected country and year
+    filtered = df_long.copy()
+
+
+
     # ─── Tab 1: Year-over-Year Changes ─────────────────────
     with tab1:
+        
         st.subheader("📈 Historical Year-over-Year Temperature Changes")
         
         st.write("""
@@ -218,29 +317,46 @@ if page == "Explore Trends":
             return top_countries["Country"].tolist()
 
         if selected_country == "All":
+            # Filering years range
+            df_long = df_long[(df_long["Year"] >= dev_year_range[0]) & (df_long["Year"] <= dev_year_range[1])]
+
+            # Creating a selecting interaction
+            sel_country = alt.selection_point(on='pointerover', fields=["Country"], nearest=True, empty="all")
+
+            # Get sample countries for visualization
             sample_countries = get_sample_countries(df_long)
             yoy_data = df_long[df_long["Country"].isin(sample_countries)].copy()
             yoy_data["YoY_Change"] = yoy_data.groupby("Country")["TempChange"].diff()
             scatter_data = df_long[df_long["Country"].isin(sample_countries)]
 
+            # Create line chart for year-over-year changes
             line = alt.Chart(yoy_data).mark_line(point=True).encode(
                 x=alt.X("Year:O"),
                 y=alt.Y("YoY_Change:Q", title="Change from Previous Year (°C)"),
                 color="Country:N",
+                opacity=alt.condition(sel_country, alt.value(1), alt.value(0.15)),
                 tooltip=["Year", "Country", "YoY_Change"]
-            ).properties(title="Year-over-Year Change – Sample Countries", height=350, width=800)
+            ).add_params(sel_country).properties(title="Year-over-Year Change – Sample Countries", height=350, width=800)
 
         else:
+            df_long = df_long[(df_long["Year"] >= dev_year_range[0]) & (df_long["Year"] <= dev_year_range[1])]
+            
+            # Creating a selecting interaction
+            sel_country = alt.selection_point(on='pointerover', fields=["Country"], nearest=True, empty="all")
+
+            # Filter data for the selected country
             yoy_data = df_long[df_long["Country"] == selected_country].copy()
             yoy_data["YoY_Change"] = yoy_data["TempChange"].diff()
             scatter_data = df_long[df_long["Country"] == selected_country]
 
+            # Create line chart for year-over-year changes
             line = alt.Chart(yoy_data).mark_line(point=True).encode(
                 x=alt.X("Year:O"),
                 y=alt.Y("YoY_Change:Q", title="Change from Previous Year (°C)"),
                 color=alt.value("#f45b69"),
+                opacity= alt.condition(sel_country, alt.value(1), alt.value(0.15)),
                 tooltip=["Year", "YoY_Change"]
-            ).properties(title=f"Year-over-Year Change – {selected_country}", height=350, width=800)
+            ).add_params(sel_country).properties(title=f"Year-over-Year Change – {selected_country}", height=350, width=800)
 
         sel_country = alt.selection_point(fields=["Country"], empty="all")
 
@@ -252,7 +368,13 @@ if page == "Explore Trends":
             tooltip=["Country", "Year", "TempChange"]
         ).add_params(sel_country).properties(title="Raw Temperature Change", height=350, width=800)
 
-        st.altair_chart(line & scatter, use_container_width=True)
+        st.altair_chart(alt.vconcat(line,scatter).properties(autosize=alt.AutoSizeParams(
+            type='fit-x',
+            contains='padding',
+            resize=True
+        )).resolve_scale(color="independent"),
+        use_container_width=True)
+
 
     # ─── Tab 2: Temperature Scatter Plot ───────────────────
     with tab2:
@@ -263,7 +385,7 @@ if page == "Explore Trends":
         Use the interactive legend and selection tool to highlight a country and explore its data.
         """)
 
-        sel_country_2 = alt.selection_point(fields=["Country"], empty="all")
+        sel_country_2 = alt.selection_point(on='pointerover', fields=["Country"], nearest=True, empty="all")
 
         if selected_country == "All":
             scatter_data_2 = df_long[df_long["Country"].isin(df_long["Country"].unique()[:10])]
@@ -283,7 +405,53 @@ if page == "Explore Trends":
             title="Annual Temperature Change by Country"
         )
 
-        st.altair_chart(scatter_chart, use_container_width=True)
+        # Creating monthly temperature chart
+
+        # Load monthly data
+        df_monthly = load_monthly_data()
+
+        # Filter monthly data based on selected country
+        if selected_country == "All":
+            df_monthly = df_monthly[df_monthly["Entity"]== 'World']
+            name = selected_country
+        else:
+            df_monthly = df_monthly[df_monthly["Entity"] == selected_country]
+            name = selected_country
+        # Create a selection for year range
+        df_monthly = df_monthly[(df_monthly["Year"] >= dev_year_range[0]) & (df_monthly["Year"] <= dev_year_range[1])]
+
+        # Creating an interactive selection for year
+        sel_year = alt.selection_point(on='pointerover', fields=['Year'], nearest=True, empty=True)
+
+        base = alt.Chart(df_monthly).encode(
+             x=alt.X("Month_named:N", 
+            sort=['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], title='Month'), #axis=alt.Axis(labelAngle=0)),
+            y="Monthly Average Temperature Change (°C):Q")
+    
+        points = base.mark_circle().encode(
+            opacity=alt.value(0),
+            tooltip=["Year", "Monthly Average Temperature Change (°C)"]
+        ).add_params(
+            sel_year
+        )
+        lines = base.mark_line().encode(
+            color=alt.Color("Yearly Average Temperature Change (°C)",scale=alt.Scale(scheme='reds'), legend=alt.Legend(title="Yearly Average Temperature Change(°C)")),
+            opacity=alt.condition(sel_year, alt.value(1), alt.value(0.20)),
+            tooltip=["Year", "Monthly Average Temperature Change (°C)"]
+        ).properties(
+            width=750, height=400,
+            title=f"Monthly Average Temperature Change – {name}",
+        ).interactive()
+
+        monthly_line = points + lines
+
+
+        st.altair_chart(alt.vconcat(scatter_chart,monthly_line).properties(autosize=alt.AutoSizeParams(
+            type='fit-x',
+            contains='padding',
+            resize=True
+        )).resolve_scale(color="independent"),
+        use_container_width=True)
 
     # ─── Tab 3: Variability Analysis ───────────────────────
     with tab3:
@@ -360,6 +528,27 @@ if page == "Explore Trends":
 
 # ─── Warming Gases Page ─────────────────────────────────────
 if page == "Warming Gases":
+    
+    # Load gas data
+    df_gas = pd.read_csv('global-warming-by-gas-and-source.csv')
+    # ─── Sidebar Filters ───────────────    
+    st.sidebar.header("🔍 Filters")
+    countries = ["All"] + sorted(df_gas["Entity"].unique())
+    # years = sorted(df_gas["Year"].unique())  # Keep years available if needed
+
+    year_min, year_max = int(1961), int(df_gas["Year"].max())
+
+    selected_country = st.sidebar.selectbox("Country", countries)
+    dev_year_range = st.sidebar.slider("Year Range",
+                               min_value=year_min,
+                               max_value=year_max,
+                               value=(year_min, year_max),
+                               step=1,
+                               key="dev_year_range")  # Optional: keep if you want to filter by year
+
+    # Filter the DataFrame based on selected country and year
+    filtered = df_long.copy()  
+    
     st.subheader("🔥 Warming Contributions by Gas and Source")
     st.info("""
     This area chart shows **the warming impact of major greenhouse gases and emission sources over time**.
@@ -367,22 +556,24 @@ if page == "Warming Gases":
     """)
 
     # Set a default year range and country
-    dev_year_range = (1961, 2004)  # You can add a sidebar slider later if needed
+    year_range = (dev_year_range[0], dev_year_range[1])
     chart_country = selected_country if 'selected_country' in locals() else "All"
+    
+    gas_long = prepare_gas_data(df_gas, year_range, chart_country)
 
-    # Load gas data
-    gas_long = prepare_gas_data(df_long, dev_year_range, chart_country)
+    gas_long['Legend'] = gas_long['series']
 
     # Interactive selection logic
-    selection = alt.selection_point(fields=['series'])
-    condition = alt.condition(selection, 'series:N', alt.ColorValue('lightgray'))
+    selection = alt.selection_point(fields=['Legend'])
+    condition = alt.condition(selection, 'Legend:N', alt.ColorValue('lightgray'))
+
 
     # Area chart showing contribution by gas
     area = alt.Chart(gas_long).mark_area(opacity=0.7).encode(
         x=alt.X("Year:O", title="Year"),
         y=alt.Y("Temp Change:Q", title="Temperature Change (°C)"),
         color=condition,
-        order="series:N",
+        order="Legend:N",
         tooltip=['Year:O', 'Legend:N', 'Temp Change:Q']
     ).add_params(selection).properties(
         width=900,
@@ -408,9 +599,108 @@ if page == "Warming Gases":
     st.altair_chart(area, use_container_width=True)
 
 # ─── Roydan to add Content ───────────────────────────────────
-if page == "Placeholder":
-    st.title("Placeholder Page")
-    st.write("This is a placeholder page. You can add content here later.")
+if page == "Global Warming Contribution":
+    st.title("Global Warming Contribution")
+    st.markdown("""
+    #### How do developed and developing nations contribute to global warming?
+    - The visualization below illustrates a group or nation's share of global mean surface temperature change as a result of its cumulative emission of three gases - carbon dioxide, methane, and nitrous oxide.
+    - Select the "Detailed" radio button to zoom and filter on the biggest offenders.
+    - Zoom and select a time period via interaction to analyse temporal changes in global mean surface temperature.
+                """)
+    # Decided not to have this feature
+    # # Creating slider
+    # year_min, year_max = int(1961), int(2024)
+    # dev_year_range = st.sidebar.slider("Year Range",
+    #                            min_value=year_min,
+    #                            max_value=year_max,
+    #                            value=(year_min, year_max),
+    #                            step=1,
+    #                            key="dev_year_range")
+
+     # Loading data
+    df_overview, df_contribution_lcd, df_contribution_oecd = load_contribution_df()
+    
+    # Creating nations list
+    countries =list(df_overview['Entity'].unique())
+    
+    brush_new = alt.selection_interval(encodings=['x'],resolve='global')
+    conditonal = alt.condition(brush_new, alt.value(1.0),alt.value(0.25))
+    
+    # Creating radio button for chart
+    radio = st.radio("Select Chart", ('Overview','Detailed'))
+
+    if radio == 'Overview':
+        # Creating an area line chart    
+        Background = alt.Chart(df_overview).mark_area().encode(
+        x='Year:O',
+        y='Share of contribution to global warming:Q',
+        #opacity = conditonal,
+        color='Entity')
+
+        # background + selected
+        chart = Background #+ highlight
+        st.subheader("Contributions to the change in global mean surface temperature - Developing Versus Developed")
+        st.altair_chart(chart, use_container_width=True)
+        st.caption("Organization for economic cooperation and development (OECD) is a international organization composed of 38 member nations that collaborate to develope economic and social policies.")
+        st.caption("Least developed nations(LDC) are 43 economies recognized by the United Nations as facing the most structural impediments to sustainable developement.")
+    elif radio == 'Detailed':
+        brush_new = alt.selection_interval(encodings=['x'],resolve='global')
+        conditonal = alt.condition(brush_new, alt.value(1.0),alt.value(0.25))
+        # Creating chart
+        background_OECD = alt.Chart(df_contribution_oecd, title='Contributions to the change in global mean surface temperature- OECD Nations').mark_line().encode(
+            x=alt.X('Year:O'),
+            y=alt.Y('Share of contribution to global warming:Q'),
+            #color=alt.Color('Entity:N'),
+            opacity=conditonal,
+            color=alt.condition(brush_new, 'Entity:N', alt.ColorValue('gray')),
+            tooltip=['Entity:N','Share of contribution to global warming:Q','Year']
+        ).properties(width=500,height=300).add_params(brush_new).interactive()
+        
+        # Creating a highlight chart
+        highlight_OECD = alt.Chart(df_contribution_oecd).mark_line().encode(
+            x=alt.X('Year:O'),
+            y=alt.Y('Share of contribution to global warming:Q'),
+            color=alt.Color('Entity:N'),
+        
+            tooltip=['Entity:N','Share of contribution to global warming:Q','Year']
+        ).transform_filter(brush_new)
+
+
+         # Creating chart
+        background_LDC = alt.Chart(df_contribution_lcd, title='Contributions to the change in global mean surface temperature- LDC Nations').mark_line().encode(
+            x=alt.X('Year:O'),
+            y=alt.Y('Share of contribution to global warming:Q'),
+            #color=alt.Color('Entity:N'),
+            opacity=conditonal,
+            color=alt.condition(brush_new, alt.Color('Entity:N', scale=alt.Scale(scheme='category10')), alt.ColorValue('gray')),
+            tooltip=['Entity:N','Share of contribution to global warming:Q','Year']
+        ).properties(width=500,height=300).add_params(brush_new).interactive()
+        
+        # Creating a highlight chart
+        highlight_LDC = alt.Chart(df_contribution_lcd).mark_line().encode(
+            x=alt.X('Year:O'),
+            y=alt.Y('Share of contribution to global warming:Q'),
+            color=alt.Color('Entity:N', scale=alt.Scale(scheme='category10')),
+        
+            tooltip=['Entity:N','Share of contribution to global warming:Q','Year']
+        ).interactive().transform_filter(brush_new)
+        
+        # combining the two charts
+        st.subheader("Contributions to the change in global mean surface temperature - Developing Versus Developed")
+        chart_OECD = background_OECD + highlight_OECD
+        chart_LDC = background_LDC + highlight_LDC
+        chart = alt.hconcat(chart_LDC,chart_OECD).resolve_scale(color='independent',y='shared')
+
+        st.altair_chart(chart)
+        st.altair_chart(alt.vconcat(alt.hconcat(chart_LDC,chart_OECD)).resolve_scale(color='independent'))
+       
+
+
+
+
+     
+
+
 
 # ─── Chat Assistant Page ────────────────────────────────
 if page == "Chat Assistant":
