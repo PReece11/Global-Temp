@@ -168,10 +168,10 @@ def prepare_gas_data(df2, dev_year_range, chart_country):
 def load_monthly_data():
     df_monthly = pd.read_csv("df_monthly_long.csv")
     df_monthly['Date'] = pd.to_datetime(df_monthly[['Year', 'Month']].assign(DAY=1)) # Adding a date column for better plotting
-    df_monthly.rename(columns={'Mean_Temp':'Monthly Average Temperature Change (°C)',}, inplace=True)
+    df_monthly.rename(columns={'Mean_Temp':'Monthly Average Temperature (°C)',}, inplace=True)
 
     # Creating new yearly averages column
-    yearly_averages = df_monthly.groupby(['Year','Entity'])["Monthly Average Temperature Change (°C)"].agg('mean').reset_index().rename(columns={"Monthly Average Temperature Change (°C)": "Yearly Average Temperature Change (°C)"})
+    yearly_averages = df_monthly.groupby(['Year','Entity'])["Monthly Average Temperature (°C)"].agg('mean').reset_index().rename(columns={"Monthly Average Temperature (°C)": "Yearly Average Temperature (°C)"})
     
     # Merging
     df_monthly = pd.merge(df_monthly, yearly_averages, on=['Year','Entity'], how='left')
@@ -363,7 +363,7 @@ if page == "Explore Trends":
         scatter = alt.Chart(scatter_data).mark_circle(size=60).encode(
             x=alt.X("Year:O", title="Year"),
             y=alt.Y("TempChange:Q", title="Temperature Change (°C)"),
-            color=alt.Color("TempChange:Q", scale=alt.Scale(scheme="plasma")),
+            color=alt.Color("TempChange:Q", scale=alt.Scale(scheme="reds")),
             opacity=alt.condition(sel_country, alt.value(1), alt.value(0.15)),
             tooltip=["Country", "Year", "TempChange"]
         ).add_params(sel_country).properties(title="Raw Temperature Change", height=350, width=800)
@@ -396,14 +396,19 @@ if page == "Explore Trends":
             x=alt.X("Year:O", title="Year"),
             y=alt.Y("TempChange:Q", title="Temperature Change (°C)"),
             color=alt.Color("Country:N" if selected_country == "All" else "TempChange:Q", 
-                            scale=alt.Scale(scheme="plasma")),
+                            scale=alt.Scale(scheme="category10")),
             opacity=alt.condition(sel_country_2, alt.value(1), alt.value(0.15)),
             tooltip=["Country", "Year", "TempChange"]
         ).add_params(sel_country_2).properties(
             width=800,
             height=450,
-            title="Annual Temperature Change by Country"
-        )
+            title="Annual Temperature Change by Country",autosize=alt.AutoSizeParams(
+            type='fit-x',
+            contains='padding',
+            resize=True
+        ))
+
+        st.altair_chart(scatter_chart, use_container_width=True)
 
         # Creating monthly temperature chart
 
@@ -422,36 +427,36 @@ if page == "Explore Trends":
 
         # Creating an interactive selection for year
         sel_year = alt.selection_point(on='pointerover', fields=['Year'], nearest=True, empty=True)
-
+       
         base = alt.Chart(df_monthly).encode(
              x=alt.X("Month_named:N", 
             sort=['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], title='Month'), #axis=alt.Axis(labelAngle=0)),
-            y="Monthly Average Temperature Change (°C):Q")
+            y="Monthly Average Temperature (°C):Q")
     
         points = base.mark_circle().encode(
             opacity=alt.value(0),
-            tooltip=["Year", "Monthly Average Temperature Change (°C)"]
+            tooltip=["Year", "Monthly Average Temperature (°C)"]
         ).add_params(
             sel_year
         )
         lines = base.mark_line().encode(
-            color=alt.Color("Yearly Average Temperature Change (°C)",scale=alt.Scale(scheme='reds'), legend=alt.Legend(title="Yearly Average Temperature Change(°C)")),
+            color=alt.Color("Yearly Average Temperature (°C)",scale=alt.Scale(scheme='reds'), legend=alt.Legend(title="Yearly Average Temperature(°C)")),
             opacity=alt.condition(sel_year, alt.value(1), alt.value(0.20)),
-            tooltip=["Year", "Monthly Average Temperature Change (°C)"]
+            tooltip=["Year", "Monthly Average Temperature (°C)"]
         ).properties(
-            width=750, height=400,
-            title=f"Monthly Average Temperature Change – {name}",
+            width=750, height=400
         ).interactive()
 
-        monthly_line = points + lines
-
-
-        st.altair_chart(alt.vconcat(scatter_chart,monthly_line).properties(autosize=alt.AutoSizeParams(
+        
+        monthly_line = alt.layer(points + lines).properties(autosize=alt.AutoSizeParams(
             type='fit-x',
             contains='padding',
-            resize=True
-        )).resolve_scale(color="independent"),
-        use_container_width=True)
+            resize=True))
+
+        st.subheader("Explore how how the average monthly temperature have gotten :red[hotter] in recent years")
+        st.write('This is the average temperature of the air measured two meters above the ground, encompassing land, sea, and in-land water surfaces.')
+
+        st.altair_chart(monthly_line,use_container_width=True)
 
     # ─── Tab 3: Variability Analysis ───────────────────────
     with tab3:
