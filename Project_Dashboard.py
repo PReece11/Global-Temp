@@ -458,32 +458,60 @@ if page == "Explore Trends":
 
         st.altair_chart(monthly_line,use_container_width=True)
 
-    # ─── Tab 3: Variability Analysis ───────────────────────
-    with tab3:
-        st.subheader("🔻 Countries with Decreasing Temperature Variability")
-        st.info("""
-        This chart compares the **standard deviation of temperature change** before and after 1993.
-        A **negative delta** indicates more stable climate conditions.
-        """)
+# ─── Tab 3: Variability Analysis ───────────────────────
+with tab3:
+    st.subheader("🔻 Countries with Decreasing Temperature Variability")
+    st.info("""
+    This chart compares the **standard deviation of temperature change** before and after 1993.
+    A **negative delta** indicates more stable climate conditions.
+    """)
 
-        early = df_long[df_long["Year"] <= 1992].groupby("Country")["TempChange"].std().reset_index(name="Std_Early")
-        late = df_long[df_long["Year"] >= 1993].groupby("Country")["TempChange"].std().reset_index(name="Std_Late")
-        std_comp = early.merge(late, on="Country")
-        std_comp["Delta_Std"] = std_comp["Std_Late"] - std_comp["Std_Early"]
-        decreasing = std_comp[std_comp["Delta_Std"] < 0].sort_values("Delta_Std")
+    early = df_long[df_long["Year"] <= 1992].groupby("Country")["TempChange"].std().reset_index(name="Std_Early")
+    late = df_long[df_long["Year"] >= 1993].groupby("Country")["TempChange"].std().reset_index(name="Std_Late")
+    std_comp = early.merge(late, on="Country")
+    std_comp["Delta_Std"] = std_comp["Std_Late"] - std_comp["Std_Early"]
+    decreasing = std_comp[std_comp["Delta_Std"] < 0].sort_values("Delta_Std")
 
-        bar = alt.Chart(decreasing).mark_bar().encode(
-            x=alt.X("Delta_Std:Q", title="∆ Std Dev (1993–2024 − 1961–1992)"),
-            y=alt.Y("Country:N", sort="-x"),
-            color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="viridis", domainMid=0)),
-            tooltip=["Country", "Std_Early", "Std_Late", "Delta_Std"]
-        ).properties(
-            height=500,
-            width=750,
-            title="Top Countries with Decreasing Yearly Temperature Variability"
-        )
+    # Change to horizontal bar chart with ADA-compliant colors
+    bar = alt.Chart(decreasing).mark_bar().encode(
+        x=alt.X("Delta_Std:Q", title="∆ Std Dev (1993–2024 − 1961–1992)"),
+        y=alt.Y("Country:N", sort="-x"),
+        color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="bluegreen"), legend=alt.Legend(title="Delta Std Dev")),
+        tooltip=["Country", "Std_Early", "Std_Late", "Delta_Std"]
+    ).properties(
+        height=600,  # Adjusted height for better visibility
+        width=900,   # Adjusted width for better layout
+        title="Top Countries with Decreasing Yearly Temperature Variability"
+    )
 
-        st.altair_chart(bar, use_container_width=True)
+    # Add annotations for Delta_Std values
+    text = bar.mark_text(
+        align='left',
+        baseline='middle',
+        dx=5  # Adjusts the position of the text
+    ).encode(
+        x=alt.X("Delta_Std:Q"),
+        y=alt.Y("Country:N"),
+        text=alt.Text("Delta_Std:Q", format=".2f")  # Format the text to show two decimal places
+    )
+
+    # Combine bar and text layers
+    chart = (bar + text).properties(
+        width=900,
+        height=600
+    )
+
+    # Add reference line at zero
+    reference_line = alt.Chart(decreasing).mark_rule(color='red').encode(
+        x='0:Q'
+    )
+
+    # Combine everything
+    final_chart = (chart + reference_line).properties(
+        title="Top Countries with Decreasing Yearly Temperature Variability"
+    )
+
+    st.altair_chart(final_chart, use_container_width=True)
 
     # ─── Tab 4: Developed vs Developing Comparison ─────────
     with tab4:
