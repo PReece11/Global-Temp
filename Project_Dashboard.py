@@ -647,10 +647,7 @@ if page == "Warming Gases":
     - The leading gases are carbon dioxide (CO₂), methane (CH₄), and nitrous oxide (N₂O).
     - The main sources are fossil fuels and industry (FF&I), and agriculture and land use (AgLU).
     - You can interact with the chart legend to isolate specific gases or sources.
-    """)
-
-    st.markdown("""
-    - The most prevalent contributor to global warming is **carbon dioxide** from **fossil fuels and industry**.  
+    - The most prevalent contributor to global warming is **carbon dioxide** from **fossil fuels and industry**.
     - Solutions include transitioning to renewable energy, electrification of transportation, and adopting energy-efficient technologies.
     """)
 
