@@ -330,13 +330,32 @@ if page == "Explore Trends":
             scatter_data = df_long[df_long["Country"].isin(sample_countries)]
 
             # Create line chart for year-over-year changes
-            line = alt.Chart(yoy_data).mark_line(point=True).encode(
+
+            base = alt.Chart(yoy_data).encode(
                 x=alt.X("Year:O"),
-                y=alt.Y("YoY_Change:Q", title="Change from Previous Year (°C)"),
-                color="Country:N",
+                y=alt.Y("YoY_Change:Q"
+            )).add_params(sel_country)
+
+            select_plot = base.mark_circle().encode(
+                opacity = alt.value(0)
+            )
+
+            line_plot= base.mark_line().encode(
+                color='Country:N',
                 opacity=alt.condition(sel_country, alt.value(1), alt.value(0.15)),
-                tooltip=["Year", "Country", "YoY_Change"]
+                tooltip=['Year', 'Country', 'YoY_Change']
             ).add_params(sel_country).properties(title="Year-over-Year Change – Sample Countries", height=350, width=800)
+
+            chart = alt.layer(select_plot + line_plot)
+
+
+            # line = alt.Chart(yoy_data).mark_line(point=True).encode(
+            #     x=alt.X("Year:O"),
+            #     y=alt.Y("YoY_Change:Q", title="Change from Previous Year (°C)"),
+            #     color="Country:N",
+            #     opacity=alt.condition(sel_country, alt.value(1), alt.value(0.15)),
+            #     tooltip=["Year", "Country", "YoY_Change"]
+            # ).add_params(sel_country).properties(title="Year-over-Year Change – Sample Countries", height=350, width=800)
 
         else:
             df_long = df_long[(df_long["Year"] >= dev_year_range[0]) & (df_long["Year"] <= dev_year_range[1])]
@@ -350,7 +369,7 @@ if page == "Explore Trends":
             scatter_data = df_long[df_long["Country"] == selected_country]
 
             # Create line chart for year-over-year changes
-            line = alt.Chart(yoy_data).mark_line(point=True).encode(
+            chart = alt.Chart(yoy_data).mark_line(point=True).encode(
                 x=alt.X("Year:O"),
                 y=alt.Y("YoY_Change:Q", title="Change from Previous Year (°C)"),
                 color=alt.value("#f45b69"),
@@ -368,7 +387,7 @@ if page == "Explore Trends":
             tooltip=["Country", "Year", "TempChange"]
         ).add_params(sel_country).properties(title="Raw Temperature Change", height=350, width=800)
 
-        st.altair_chart(alt.vconcat(line,scatter).properties(autosize=alt.AutoSizeParams(
+        st.altair_chart(alt.vconcat(chart,scatter).properties(autosize=alt.AutoSizeParams(
             type='fit-x',
             contains='padding',
             resize=True
@@ -459,59 +478,59 @@ if page == "Explore Trends":
         st.altair_chart(monthly_line,use_container_width=True)
 
 # ─── Tab 3: Variability Analysis ───────────────────────
-with tab3:
-    st.subheader("🔻 Countries with Decreasing Temperature Variability")
-    st.info("""
-    This chart compares the **standard deviation of temperature change** before and after 1993.
-    A **negative delta** indicates more stable climate conditions.
-    """)
+    with tab3:
+        st.subheader("🔻 Countries with Decreasing Temperature Variability")
+        st.info("""
+        This chart compares the **standard deviation of temperature change** before and after 1993.
+        A **negative delta** indicates more stable climate conditions.
+        """)
 
-    early = df_long[df_long["Year"] <= 1992].groupby("Country")["TempChange"].std().reset_index(name="Std_Early")
-    late = df_long[df_long["Year"] >= 1993].groupby("Country")["TempChange"].std().reset_index(name="Std_Late")
-    std_comp = early.merge(late, on="Country")
-    std_comp["Delta_Std"] = std_comp["Std_Late"] - std_comp["Std_Early"]
-    decreasing = std_comp[std_comp["Delta_Std"] < 0].sort_values("Delta_Std")
+        early = df_long[df_long["Year"] <= 1992].groupby("Country")["TempChange"].std().reset_index(name="Std_Early")
+        late = df_long[df_long["Year"] >= 1993].groupby("Country")["TempChange"].std().reset_index(name="Std_Late")
+        std_comp = early.merge(late, on="Country")
+        std_comp["Delta_Std"] = std_comp["Std_Late"] - std_comp["Std_Early"]
+        decreasing = std_comp[std_comp["Delta_Std"] < 0].sort_values("Delta_Std")
 
-    # Change to horizontal bar chart with ADA-compliant colors
-    bar = alt.Chart(decreasing).mark_bar().encode(
-        x=alt.X("Delta_Std:Q", title="∆ Std Dev (1993–2024 − 1961–1992)"),
-        y=alt.Y("Country:N", sort="-x"),
-        color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="bluegreen"), legend=alt.Legend(title="Delta Std Dev")),
-        tooltip=["Country", "Std_Early", "Std_Late", "Delta_Std"]
-    ).properties(
-        height=600,  # Adjusted height for better visibility
-        width=900,   # Adjusted width for better layout
-        title="Top Countries with Decreasing Yearly Temperature Variability"
-    )
+        # Change to horizontal bar chart with ADA-compliant colors
+        bar = alt.Chart(decreasing).mark_bar().encode(
+            x=alt.X("Delta_Std:Q", title="∆ Std Dev (1993–2024 − 1961–1992)"),
+            y=alt.Y("Country:N", sort="-x"),
+            color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="bluegreen"), legend=alt.Legend(title="Delta Std Dev")),
+            tooltip=["Country", "Std_Early", "Std_Late", "Delta_Std"]
+        ).properties(
+            height=600,  # Adjusted height for better visibility
+            width=900,   # Adjusted width for better layout
+            title="Top Countries with Decreasing Yearly Temperature Variability"
+        )
 
-    # Add annotations for Delta_Std values
-    text = bar.mark_text(
-        align='left',
-        baseline='middle',
-        dx=5  # Adjusts the position of the text
-    ).encode(
-        x=alt.X("Delta_Std:Q"),
-        y=alt.Y("Country:N"),
-        text=alt.Text("Delta_Std:Q", format=".2f")  # Format the text to show two decimal places
-    )
+        # Add annotations for Delta_Std values
+        text = bar.mark_text(
+            align='left',
+            baseline='middle',
+            dx=5  # Adjusts the position of the text
+        ).encode(
+            x=alt.X("Delta_Std:Q"),
+            y=alt.Y("Country:N"),
+            text=alt.Text("Delta_Std:Q", format=".2f")  # Format the text to show two decimal places
+        )
 
-    # Combine bar and text layers
-    chart = (bar + text).properties(
-        width=900,
-        height=600
-    )
+        # Combine bar and text layers
+        chart = (bar + text).properties(
+            width=900,
+            height=600
+        )
 
-    # Add reference line at zero
-    reference_line = alt.Chart(decreasing).mark_rule(color='red').encode(
-        x='0:Q'
-    )
+        # Add reference line at zero
+        reference_line = alt.Chart(decreasing).mark_rule(color='red').encode(
+            x='0:Q'
+        )
 
-    # Combine everything
-    final_chart = (chart + reference_line).properties(
-        title="Top Countries with Decreasing Yearly Temperature Variability"
-    )
+        # Combine everything
+        final_chart = (chart + reference_line).properties(
+            title="Top Countries with Decreasing Yearly Temperature Variability"
+        )
 
-    st.altair_chart(final_chart, use_container_width=True)
+        st.altair_chart(final_chart, use_container_width=True)
 
     # ─── Tab 4: Developed vs Developing Comparison ─────────
     with tab4:
@@ -749,6 +768,17 @@ if page == "Chat Assistant":
     - “What does decreased variability mean?”
     - “Compare developing vs developed warming patterns”
     """)
+    # def ask_climatebot(prompt):
+    # response = openai.ChatCompletion.create(
+    #     model="gpt-4",  # or "gpt-3.5-turbo"
+    #     messages=[
+    #         {"role": "system", "content": "You are ClimateBot, an expert in climate change, data storytelling, and global temperature trends. Be helpful and cite charts when possible."},
+    #         {"role": "user", "content": prompt}
+    #     ],
+    #     temperature=0.7
+    # )
+    # return response['choices'][0]['message']['content']
+
 
     # Set up chat interface
     if "chat_history" not in st.session_state:
