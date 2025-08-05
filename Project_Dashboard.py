@@ -56,7 +56,7 @@ Use this menu to switch between sections of the dashboard:
 - **Home**: Overview of global temperature trends
 - **Explore Trends**: Yearly patterns, variability, and status comparisons
 - **Warming Gases**: Contributions by greenhouse gases and sources
-- **Global Warming Contribution**: This is a placeholder page.
+- **Global Warming Contribution**: Trends in how developed vs. developing countries have contributed to global warming.
 - **Chat Assistant**: Ask questions like "Which country warmed fastest in 1998?"
 
 🌓 **Note**: This dashboard is best viewed in **dark mode** for optimal readability and contrast.
@@ -261,9 +261,9 @@ if page == "Home":
     Over the past century, the Earth's surface temperature has experienced significant changes due to various natural and anthropogenic factors. This dashboard explores key global temperature trends, anomalies, and projections to provide insights into the ongoing climate challenges.
 
     **How Gases Affect Temperature**  
-    Greenhouse gases, like carbon dioxide (CO2), methane (CH4), and water vapor, trap heat in the Earth's atmosphere. This natural process, called the greenhouse effect, maintains the Earth's habitable temperature. However, excessive emissions from human activities, including burning fossil fuels and deforestation, amplify this effect, leading to global warming and climate changes.
+    Greenhouse gases such as carbon dioxide (CO₂), methane (CH₄), and nitrous oxide (N₂O) trap heat in the Earth's atmosphere. This natural process, called the **greenhouse effect**, maintains the Earth's habitable temperature. However, excessive emissions from human activities, including burning fossil fuels and deforestation, amplify this effect, leading to global warming and climate change. 
 
-    Explore the visualizations to understand the impacts of these changes and potential mitigation strategies.
+    Head to the sidebar to explore our visualizations and learn more about the impacts of these changes and potential mitigation strategies.
     """)
     
 # ─── Explore Trends Page Tabs ─────────────────────────────
