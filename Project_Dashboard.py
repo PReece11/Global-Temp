@@ -301,7 +301,7 @@ if page == "Explore Trends":
         - **Hover** over the data points in both the line and scatter plots to see detailed information about the **Year**, **Temperature Change (°C)**, and **Country**.
         - **Select** specific countries in the scatter plot to highlight their temperature trends. The line chart will update to show the year-over-year changes for the selected country.
         - **Analyze** the relationship between year-over-year changes (line) and overall temperature trends (scatter points) to identify patterns and anomalies.
-        - Use **zoom and pan** features to focus on specific time periods for a more detailed examination.
+        - Use **zoom and pan** features with the **"🔍 Filters"** sidebar to focus on specific time periods for a more detailed examination.
         - To return to viewing all countries, simply **deselect** any highlighted points in the scatter plot.
 
         Enjoy exploring the temperature trends!
@@ -335,8 +335,8 @@ if page == "Explore Trends":
 
             base = alt.Chart(yoy_data).encode(
                 x=alt.X("Year:O"),
-                y=alt.Y("YoY_Change:Q",
-            )).add_params(sel_country)
+                y=alt.Y("YoY_Change:Q", title="Change from Previous Year (°C)"),
+            ).add_params(sel_country)
 
             select_plot = base.mark_circle().encode(
                 opacity = alt.value(0),
@@ -610,7 +610,7 @@ if page == "Warming Gases":
     st.subheader("🔥 Warming Contributions by Gas and Source")
     st.info("""
     This area chart shows **the warming impact of major greenhouse gases and emission sources over time**.
-    Click the legend to highlight or filter different contributors.
+    Click the legend to **highlight or filter** different contributors.
     """)
 
     # Set a default year range and country
@@ -663,7 +663,7 @@ if page == "Global Warming Contribution":
     #### How do developed and developing nations contribute to global warming?
     - The visualization below illustrates a group or nation's share of global mean surface temperature change as a result of its cumulative emission of three gases - carbon dioxide, methane, and nitrous oxide.
     - **Select** the **"Detailed"** radio button to zoom and filter on the biggest offenders.
-    - **Zoom and select a time period via interaction to analyse temporal changes in global mean surface temperature.**
+    - **Zoom and select a time period via interaction** to analyse temporal changes in global mean surface temperature.
                 """)
     # Decided not to have this feature
     # # Creating slider
