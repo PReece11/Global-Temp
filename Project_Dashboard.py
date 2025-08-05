@@ -66,12 +66,28 @@ page = st.sidebar.radio(
     ["Home", "Explore Trends", "Warming Gases", "Global Warming Contribution", "Chat Assistant"],  
     index=0
 )
+# ─── Ensuring all the nations are consistant across all df ─────────────────
+# loading all df that will be used in the dashboard
+df_gas = pd.read_csv('global-warming-by-gas-and-source.csv')
+df_contribution = pd.read_csv('contributions-global-temp-change.csv')
+df_monthly = pd.read_csv("df_monthly_long.csv")
+df_indicator = pd.read_csv("Indicator_3_1_Climate_Indicators_Annual_Mean_Global_Surface_Temperature_577579683071085080.csv")
+
+# Creating lists of nations
+df_gas_list = list(df_gas['Entity'].unique())
+df_contribution_list = list(df_contribution['Entity'].unique())
+df_monthly_list = list(df_monthly['Entity'].unique())
+df_indicator_list = list(df_indicator['Country'].unique())
+
+list_of_all_countries = [nation for nation in df_gas_list if nation in df_contribution_list and nation in df_contribution_list and nation in df_monthly_list and nation in df_indicator_list]
+
 
 # ─── Data Load and Prep ─────────────────
 @st.cache_data
 def load_data():
     df = pd.read_csv("Indicator_3_1_Climate_Indicators_Annual_Mean_Global_Surface_Temperature_577579683071085080.csv")
     year_cols = [c for c in df.columns if c.isdigit()]
+    
     df_long = df.melt(
         id_vars=["Country", "ISO2", "ISO3", "Indicator", "Unit"],
         value_vars=year_cols,
@@ -92,6 +108,7 @@ df_long = load_data()
 # ─── Warming Gases Page ───────
 @st.cache_data
 def prepare_gas_data(df2, dev_year_range, chart_country):
+   
     # Filter the DataFrame based on the selected year range
     df2_filtered = df2[
         (df2["Year"] >= dev_year_range[0]) &
@@ -116,21 +133,6 @@ def prepare_gas_data(df2, dev_year_range, chart_country):
         "fossil fuels": "CO2_FF&I",
         "default": "CO2_AgLU"
     }
-
-    # Not clear to my why this is needed, but keeping it for now
-    # for col in gas_cols:
-    #     for gas, sources in gas_mapping.items():
-    #         if gas in col:
-    #             if isinstance(sources, dict):
-    #                 for source, new_name in sources.items():
-    #                     if source in col:
-    #                         shortened_columns[col] = new_name
-    #                         break
-    #             else:
-    #                 shortened_columns[col] = sources
-    #             break
-    #     else:
-    #         shortened_columns[col] = "CO2_AgLU"  # Default case
 
     # Shorten column names using the mapping
     gas_cols = [c for c in df2.columns if c.startswith("Change in")]
@@ -270,7 +272,7 @@ if page == "Explore Trends":
 
     # ─── Sidebar Filters ───────────────    
     st.sidebar.header("🔍 Filters")
-    countries = ["All"] + sorted(df_long["Country"].unique())
+    countries = ["All"] + sorted(list_of_all_countries)
     years = sorted(df_long["Year"].unique())  # Keep years available if needed
 
     selected_country = st.sidebar.selectbox("Country", countries)
@@ -333,11 +335,12 @@ if page == "Explore Trends":
 
             base = alt.Chart(yoy_data).encode(
                 x=alt.X("Year:O"),
-                y=alt.Y("YoY_Change:Q"
+                y=alt.Y("YoY_Change:Q",
             )).add_params(sel_country)
 
             select_plot = base.mark_circle().encode(
-                opacity = alt.value(0)
+                opacity = alt.value(0),
+                tooltip=['Year', 'Country', 'YoY_Change']
             )
 
             line_plot= base.mark_line().encode(
@@ -379,20 +382,16 @@ if page == "Explore Trends":
 
         sel_country = alt.selection_point(fields=["Country"], empty="all")
 
-        scatter = alt.Chart(scatter_data).mark_circle(size=60).encode(
-            x=alt.X("Year:O", title="Year"),
-            y=alt.Y("TempChange:Q", title="Temperature Change (°C)"),
-            color=alt.Color("TempChange:Q", scale=alt.Scale(scheme="reds")),
-            opacity=alt.condition(sel_country, alt.value(1), alt.value(0.15)),
-            tooltip=["Country", "Year", "TempChange"]
-        ).add_params(sel_country).properties(title="Raw Temperature Change", height=350, width=800)
+        # Removing scatter plot for now
+        # scatter = alt.Chart(scatter_data).mark_circle(size=60).encode(
+        #     x=alt.X("Year:O", title="Year"),
+        #     y=alt.Y("TempChange:Q", title="Temperature Change (°C)"),
+        #     color=alt.Color("TempChange:Q", scale=alt.Scale(scheme="reds")),
+        #     opacity=alt.condition(sel_country, alt.value(1), alt.value(0.15)),
+        #     tooltip=["Country", "Year", "TempChange"]
+        # ).add_params(sel_country).properties(title="Raw Temperature Change", height=350, width=800)
 
-        st.altair_chart(alt.vconcat(chart,scatter).properties(autosize=alt.AutoSizeParams(
-            type='fit-x',
-            contains='padding',
-            resize=True
-        )).resolve_scale(color="independent"),
-        use_container_width=True)
+        st.altair_chart(chart)
 
 
     # ─── Tab 2: Temperature Scatter Plot ───────────────────
@@ -404,18 +403,19 @@ if page == "Explore Trends":
         Use the interactive legend and selection tool to highlight a country and explore its data.
         """)
 
-        sel_country_2 = alt.selection_point(on='pointerover', fields=["Country"], nearest=True, empty="all")
-
         if selected_country == "All":
             scatter_data_2 = df_long[df_long["Country"].isin(df_long["Country"].unique()[:10])]
         else:
             scatter_data_2 = df_long[df_long["Country"] == selected_country]
 
+        
+        sel_country_2 = alt.selection_point(on='pointerover', fields=["Country"], nearest=True, empty="all")
+
         scatter_chart = alt.Chart(scatter_data_2).mark_circle(size=60).encode(
             x=alt.X("Year:O", title="Year"),
             y=alt.Y("TempChange:Q", title="Temperature Change (°C)"),
-            color=alt.Color("Country:N" if selected_country == "All" else "TempChange:Q", 
-                            scale=alt.Scale(scheme="category10")),
+            color=alt.Color("TempChange:Q" if selected_country == "All" else "TempChange:Q", 
+                            scale=alt.Scale(scheme="viridis")),
             opacity=alt.condition(sel_country_2, alt.value(1), alt.value(0.15)),
             tooltip=["Country", "Year", "TempChange"]
         ).add_params(sel_country_2).properties(
@@ -459,7 +459,7 @@ if page == "Explore Trends":
             sel_year
         )
         lines = base.mark_line().encode(
-            color=alt.Color("Yearly Average Temperature (°C)",scale=alt.Scale(scheme='reds'), legend=alt.Legend(title="Yearly Average Temperature(°C)")),
+            color=alt.Color("Yearly Average Temperature (°C)",scale=alt.Scale(scheme='viridis'), legend=alt.Legend(title="Yearly Average Temperature(°C)")),
             opacity=alt.condition(sel_year, alt.value(1), alt.value(0.20)),
             tooltip=["Year", "Monthly Average Temperature (°C)"]
         ).properties(
@@ -472,7 +472,12 @@ if page == "Explore Trends":
             contains='padding',
             resize=True))
 
-        st.subheader("Explore how how the average monthly temperature have gotten :red[hotter] in recent years")
+        #st.subheader("Explore how how the average monthly temperature have gotten :yellow[hotter] in recent years")
+        st.markdown(
+        "<span style='font-size:24px; font-weight:600;'>Explore how the average monthly temperature has gotten <span style='color:gold;'>hotter</span> in recent years</span>",
+        unsafe_allow_html=True)
+
+
         st.write('This is the average temperature of the air measured two meters above the ground, encompassing land, sea, and in-land water surfaces.')
 
         st.altair_chart(monthly_line,use_container_width=True)
@@ -494,7 +499,7 @@ if page == "Explore Trends":
         # Change to horizontal bar chart with ADA-compliant colors
         bar = alt.Chart(decreasing).mark_bar().encode(
             x=alt.X("Delta_Std:Q", title="∆ Std Dev (1993–2024 − 1961–1992)"),
-            y=alt.Y("Country:N", sort="-x"),
+            y=alt.Y("Country:N", sort=alt.SortField('Delta_Std:Q', order='descending')),
             color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="bluegreen"), legend=alt.Legend(title="Delta Std Dev")),
             tooltip=["Country", "Std_Early", "Std_Late", "Delta_Std"]
         ).properties(
@@ -505,17 +510,18 @@ if page == "Explore Trends":
 
         # Add annotations for Delta_Std values
         text = bar.mark_text(
-            align='left',
+            align='right',
             baseline='middle',
-            dx=5  # Adjusts the position of the text
+            dx=-5,
+            color='white' # Adjusts the position of the text
         ).encode(
             x=alt.X("Delta_Std:Q"),
-            y=alt.Y("Country:N"),
+            y=alt.Y("Country:N", sort=alt.SortField('Delta_Std:Q', order='descending')),
             text=alt.Text("Delta_Std:Q", format=".2f")  # Format the text to show two decimal places
         )
 
         # Combine bar and text layers
-        chart = (bar + text).properties(
+        chart = alt.layer(bar,text).properties(
             width=900,
             height=600
         )
@@ -526,7 +532,7 @@ if page == "Explore Trends":
         )
 
         # Combine everything
-        final_chart = (chart + reference_line).properties(
+        final_chart = alt.layer(chart, reference_line).properties(
             title="Top Countries with Decreasing Yearly Temperature Variability"
         )
 
@@ -590,7 +596,7 @@ if page == "Warming Gases":
 
     year_min, year_max = int(1961), int(df_gas["Year"].max())
 
-    selected_country = st.sidebar.selectbox("Country", countries)
+    selected_country = st.sidebar.selectbox("Country", list_of_all_countries)
     dev_year_range = st.sidebar.slider("Year Range",
                                min_value=year_min,
                                max_value=year_max,
@@ -656,8 +662,8 @@ if page == "Global Warming Contribution":
     st.markdown("""
     #### How do developed and developing nations contribute to global warming?
     - The visualization below illustrates a group or nation's share of global mean surface temperature change as a result of its cumulative emission of three gases - carbon dioxide, methane, and nitrous oxide.
-    - Select the "Detailed" radio button to zoom and filter on the biggest offenders.
-    - Zoom and select a time period via interaction to analyse temporal changes in global mean surface temperature.
+    - **Select** the **"Detailed"** radio button to zoom and filter on the biggest offenders.
+    - **Zoom and select a time period via interaction to analyse temporal changes in global mean surface temperature.**
                 """)
     # Decided not to have this feature
     # # Creating slider
