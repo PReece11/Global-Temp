@@ -40,7 +40,7 @@ st.write(
     """
     <div class='description'>
         Explore how <strong>temperature changes over decades</strong> using interactive visualizations. 
-        Hover over charts, filter by countries, or analyze warming gases individually.
+        Hover over charts and filter by countries!
     </div>
     """,
     unsafe_allow_html=True
@@ -399,7 +399,7 @@ if page == "Explore Trends":
         st.subheader("🌡️ Temperature Change Scatter Plot by Country")
 
         st.write("""
-        This scatter plot shows the **actual annual temperature change** for each country over time.
+        This scatter plot shows the **actual annual temperature change** for each country over time, relative to the average temperature over a baseline period (1951-1980).
         Use the interactive legend and selection tool to highlight a country and explore its data.
         """)
 
@@ -500,7 +500,7 @@ if page == "Explore Trends":
         bar = alt.Chart(decreasing).mark_bar().encode(
             x=alt.X("Delta_Std:Q", title="∆ Std Dev (1993–2024 − 1961–1992)"),
             y=alt.Y("Country:N", sort=alt.SortField('Delta_Std:Q', order='descending')),
-            color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="bluegreen"), legend=alt.Legend(title="Delta Std Dev")),
+            color=alt.Color("Delta_Std:Q", scale=alt.Scale(scheme="bluegreen"), legend=alt.Legend(title="Δ Std Dev")),
             tooltip=["Country", "Std_Early", "Std_Late", "Delta_Std"]
         ).properties(
             height=600,  # Adjusted height for better visibility
@@ -555,12 +555,12 @@ if page == "Explore Trends":
 
         line_chart = alt.Chart(dev_avg).mark_line(point=True).encode(
             x=alt.X("Year:O"),
-            y=alt.Y("TempChange:Q", title="Avg Temp Change (°C)"),
+            y=alt.Y("TempChange:Q", title="Average Temperature Change (°C)"),
             color=alt.Color("DevStatus:N", scale=alt.Scale(domain=["Developed", "Developing"], range=["#2ca02c", "#ff7f0e"])),
             opacity=alt.condition(dev_sel, alt.value(1.0), alt.value(0.15)),
             tooltip=["Year", "DevStatus", "TempChange"]
         ).add_params(dev_sel).properties(
-            title="Average Temp Change by Economic Status",
+            title="Average Temperature Change by Economic Status",
             width=750,
             height=400
         )
@@ -572,12 +572,12 @@ if page == "Explore Trends":
 
         bar_chart = alt.Chart(dev_bar).mark_bar().encode(
             x=alt.X("YearGroup:O", title="5-Year Group"),
-            y=alt.Y("TempChange:Q", title="Avg Temp Change (°C)"),
+            y=alt.Y("TempChange:Q", title="Average Temperature Change (°C)"),
             color=alt.Color("DevStatus:N", scale=alt.Scale(domain=["Developed", "Developing"], range=["#2ca02c", "#ff7f0e"])),
             opacity=alt.condition(dev_sel, alt.value(1.0), alt.value(0.25)),
             tooltip=["YearGroup", "DevStatus", "TempChange"]
         ).add_params(dev_sel).properties(
-            title="5-Year Avg Temp Change by Development Status",
+            title="5-Year Average Temperature Change by Development Status",
             width=750,
             height=400
         )
