@@ -268,7 +268,7 @@ if page == "Home":
     
 # ─── Explore Trends Page Tabs ─────────────────────────────
 if page == "Explore Trends":
-    tab1, tab2, tab3, tab4 = st.tabs(["📈 Year-over-Year", "🌡️ Scatter Plot", "🔻 Variability", "🌍 Country Status"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Year-over-Year", "🌡️ Temperature Fluctuations", "🔻 Variability", "🌍 Country Status"])
 
     # ─── Sidebar Filters ───────────────    
     st.sidebar.header("🔍 Filters")
@@ -402,6 +402,15 @@ if page == "Explore Trends":
         This scatter plot shows the **actual annual temperature change** for each country over time, relative to the average temperature over a baseline period (1951-1980).
         Use the interactive legend and selection tool to highlight a country and explore its data.
         """)
+
+        st.markdown(
+            """
+            - This scatter plot shows the actual annual temperature change for each country over time. Use the interactive legend and selection tool to highlight a country and explore its data.
+            - **Scan** specific countries in the scatter plot to highlight their temperature trends.
+            - **Analyze** the relationship between year-over-year changes and the average monthly temperature to identify patterns and anomalies.
+            - Use the "🔍 Filters" sidebar to focus on specific time periods for a more detailed examination.
+            """
+        )
 
         if selected_country == "All":
             scatter_data_2 = df_long[df_long["Country"].isin(df_long["Country"].unique()[:10])]
