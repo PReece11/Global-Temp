@@ -54,7 +54,7 @@ st.sidebar.caption("""
 🔑 Use keyboard ↑↓ or type to search options. 
 Use this menu to switch between sections of the dashboard:
 - **Home**: Overview of global temperature trends
-- **Explore Trends**: Yearly patterns, variability, and status comparisons
+- **Explore Trends**: Review trends, fluctuations, and how countries compare on global warming
 - **Warming Gases**: Contributions by greenhouse gases and sources
 - **Global Warming Contribution**: Trends in how developed vs. developing countries have contributed to global warming.
 - **Chat Assistant**: Ask questions like "Which country warmed fastest in 1998?"
@@ -278,7 +278,7 @@ if page == "Explore Trends":
     selected_country = st.sidebar.selectbox("Country", countries)
     
     year_min, year_max = int(df_long["Year"].min()), int(df_long["Year"].max())
-    dev_year_range = st.sidebar.slider("Year Range",
+    dev_year_range = st.sidebar.slider("Select Time Period",
                                min_value=year_min,
                                max_value=year_max,
                                value=(year_min, year_max),
@@ -298,11 +298,10 @@ if page == "Explore Trends":
         st.write("""
         **Explore the interactive visualization below!** 
 
-        - **Hover** over the data points in both the line and scatter plots to see detailed information about the **Year**, **Temperature Change (°C)**, and **Country**.
-        - **Select** specific countries in the scatter plot to highlight their temperature trends. The line chart will update to show the year-over-year changes for the selected country.
-        - **Analyze** the relationship between year-over-year changes (line) and overall temperature trends (scatter points) to identify patterns and anomalies.
-        - Use **zoom and pan** features with the **"🔍 Filters"** sidebar to focus on specific time periods for a more detailed examination.
-        - To return to viewing all countries, simply **deselect** any highlighted points in the scatter plot.
+        - **Hover** over the elements in the line chart to see detailed information about the **Year**, **Temperature Chnage (°C)**, and **Country**.
+        - Select a country from the sidebar to highlight its year-over-year temperature trends.
+        - Use the **🔍 Filters** sidebar to explore specific time periods in greater detail.
+        - To return to viewing all countries, simply **double click** anywhere the line chart.
 
         Enjoy exploring the temperature trends!
         """)
@@ -398,10 +397,10 @@ if page == "Explore Trends":
     with tab2:
         st.subheader("🌡️ Temperature Change Scatter Plot by Country")
 
-        st.write("""
-        This scatter plot shows the **actual annual temperature change** for each country over time, relative to the average temperature over a baseline period (1951-1980).
-        Use the interactive legend and selection tool to highlight a country and explore its data.
-        """)
+        # st.write("""
+        # This scatter plot shows the **actual annual temperature change** for each country over time, relative to the average temperature over a baseline period (1951-1980).
+        # Use the interactive legend and selection tool to highlight a country and explore its data.
+        # """)
 
         st.markdown(
             """
@@ -430,7 +429,7 @@ if page == "Explore Trends":
         ).add_params(sel_country_2).properties(
             width=800,
             height=450,
-            title="Annual Temperature Change by Country",autosize=alt.AutoSizeParams(
+            title="",autosize=alt.AutoSizeParams(  # Removed "Annual Temperature Change by Country" title
             type='fit-x',
             contains='padding',
             resize=True
@@ -487,8 +486,10 @@ if page == "Explore Trends":
         unsafe_allow_html=True)
 
 
-        st.write('This is the average temperature of the air measured two meters above the ground, encompassing land, sea, and in-land water surfaces.')
-
+        st.markdown("""
+                    - This measurement reflects the average air temperature taken about six feet (two meters) above the ground over land, oceans, and lakes.
+                    - It’s a global standard used by scientists to monitor climate change and compare temperature trends over time.
+                    """)
         st.altair_chart(monthly_line,use_container_width=True)
 
 # ─── Tab 3: Variability Analysis ───────────────────────
@@ -606,7 +607,7 @@ if page == "Warming Gases":
     year_min, year_max = int(1961), int(df_gas["Year"].max())
 
     selected_country = st.sidebar.selectbox("Country", list_of_all_countries)
-    dev_year_range = st.sidebar.slider("Year Range",
+    dev_year_range = st.sidebar.slider("Select Time Period",
                                min_value=year_min,
                                max_value=year_max,
                                value=(year_min, year_max),
@@ -665,11 +666,11 @@ if page == "Warming Gases":
 # ─── Roydan to add Content ───────────────────────────────────
 if page == "Global Warming Contribution":
     st.title("Global Warming Contribution")
+    st.info("The visualization below shows each group or nation's **contribution to the global mean surface temperature change**, based on their cumulative emissions of carbon dioxide, methane, and nitrous oxide.")
     st.markdown("""
-    #### How do developed and developing nations contribute to global warming?
-    - The visualization below illustrates a group or nation's share of global mean surface temperature change as a result of its cumulative emission of three gases - carbon dioxide, methane, and nitrous oxide.
-    - **Select** the **"Detailed"** radio button to zoom and filter on the biggest offenders.
-    - **Zoom and select a time period via interaction** to analyse temporal changes in global mean surface temperature.
+    #### Tracking Climate Contributions Over Time
+    - Select the **"Detailed"** view to zoom and filter for the largest contributors.
+    -  Use the interactive zoom and time selector to explore how temperature impacts have changed over time.
                 """)
     # Decided not to have this feature
     # # Creating slider
